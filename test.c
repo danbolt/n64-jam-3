@@ -56,6 +56,11 @@ int main(void)
     wrenInitConfiguration(&config);
     config.writeFn= &wrenWrite;
 
+    // Really agressive heap stuff ; we don't have a lot of space!
+    config.initialHeapSize = 1024 * 500;
+    config.minHeapSize = 1024 * 10;
+    config.heapGrowthPercent = 10;
+
     WrenVM* vm = wrenNewVM(&config);
 
     /* Main loop test */
