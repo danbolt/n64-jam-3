@@ -4,7 +4,9 @@ all: test.z64
 BUILD_DIR = build
 include $(N64_INST)/include/n64.mk
 
-OBJS = $(BUILD_DIR)/test.o
+CFLAGS += -Iwren/include
+
+OBJS = $(BUILD_DIR)/test.o $(BUILD_DIR)/wren/vm/*.o
 
 test.z64: N64_ROM_TITLE = "Video Test"
 test.z64: $(BUILD_DIR)/test.dfs
