@@ -6,7 +6,7 @@
 #include <libdragon.h>
 
 static resolution_t res = RESOLUTION_640x240;
-static bitdepth_t bit = DEPTH_32_BPP;
+static bitdepth_t bit = DEPTH_16_BPP;
 
 int filesize( FILE *pFile )
 {

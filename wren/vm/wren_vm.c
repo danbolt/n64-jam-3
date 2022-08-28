@@ -739,7 +739,9 @@ static Value importModule(WrenVM* vm, Value name)
   wrenPushRoot(vm, AS_OBJ(name));
 
   WrenLoadModuleResult result = {0};
+#if (WREN_OPT_META || WREN_OPT_RANDOM)
   const char* source = NULL;
+#endif
   
   // Let the host try to provide the module.
   if (vm->config.loadModuleFn != NULL)
@@ -747,6 +749,7 @@ static Value importModule(WrenVM* vm, Value name)
     result = vm->config.loadModuleFn(vm, AS_CSTRING(name));
   }
   
+#if (WREN_OPT_META || WREN_OPT_RANDOM)
   // If the host didn't provide it, see if it's a built in optional module.
   if (result.source == NULL)
   {
@@ -759,6 +762,7 @@ static Value importModule(WrenVM* vm, Value name)
     if (strcmp(nameString->value, "random") == 0) result.source = wrenRandomSource();
 #endif
   }
+#endif
   
   if (result.source == NULL)
   {

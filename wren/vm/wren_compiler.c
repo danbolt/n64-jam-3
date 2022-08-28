@@ -3765,7 +3765,7 @@ ObjFn* wrenCompile(WrenVM* vm, ObjModule* module, const char* source,
   // Skip the UTF-8 BOM if there is one.
   if (strncmp(source, "\xEF\xBB\xBF", 3) == 0) source += 3;
   
-  Parser parser;
+  Parser parser = {};
   parser.vm = vm;
   parser.module = module;
   parser.source = source;
@@ -4119,7 +4119,7 @@ static void copyMethodAttributes(Compiler* compiler, bool isForeign,
   const char* foreignPrefix = isForeign ? "foreign " : "";
   const char* staticPrefix = isStatic ? "static " : "";
   sprintf(fullSignatureWithPrefix, "%s%s%.*s", foreignPrefix, staticPrefix, 
-                                               length, fullSignature);
+                                               (int)length, fullSignature);
   fullSignatureWithPrefix[fullLength] = '\0';
 
   if(compiler->enclosingClass->methodAttributes == NULL) {
