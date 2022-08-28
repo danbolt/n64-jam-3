@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <libdragon.h>
 
+#include "wren.h"
+
 static resolution_t res = RESOLUTION_640x240;
 static bitdepth_t bit = DEPTH_16_BPP;
 
@@ -35,6 +37,14 @@ sprite_t *read_sprite( const char * const spritename )
     }
 }
 
+
+static display_context_t disp = 0;
+
+void wrenWrite(WrenVM* vm, const char* text) {
+  graphics_draw_text( disp, 20, 40, text );
+}
+
+
 int main(void)
 {
     /* Initialize peripherals */
@@ -42,11 +52,16 @@ int main(void)
     dfs_init( DFS_DEFAULT_LOCATION );
     controller_init();
 
+    WrenConfiguration config;
+    wrenInitConfiguration(&config);
+    config.writeFn= &wrenWrite;
+
+    WrenVM* vm = wrenNewVM(&config);
+
     /* Main loop test */
     while(1) 
     {
         char tStr[256];
-        static display_context_t disp = 0;
 
         /* Grab a render buffer */
         while( !(disp = display_lock()) );
@@ -56,8 +71,14 @@ int main(void)
 
         sprintf(tStr, "Video mode: %lu\n", *((uint32_t *)0x80000300));
         graphics_draw_text( disp, 20, 20, tStr );
-        sprintf(tStr, "Status: %08lX\n", *((uint32_t *)0xa4400000));
+        sprintf(tStr, "memory size: %d\n", get_memory_size());
         graphics_draw_text( disp, 20, 30, tStr );
+
+        WrenInterpretResult result = wrenInterpret(
+            vm,
+            "my_module",
+            "System.print(\"VM check: OK!\")");
+        result = result;
 
         display_show(disp);
 
