@@ -20,7 +20,21 @@ void wrenErr(
       const char* module,
       int line,
       const char* message) {
-    debugf( message );
+  switch (type)
+  {
+    case WREN_ERROR_COMPILE:
+    {
+      debugf("[%s line %d] [Error] %s\n", module, line, message);
+    } break;
+    case WREN_ERROR_STACK_TRACE:
+    {
+      debugf("[%s line %d] in %s\n", module, line, message);
+    } break;
+    case WREN_ERROR_RUNTIME:
+    {
+      debugf("[Runtime Error] %s\n", message);
+    } break;
+  }
 }
 
 int main(void)
@@ -43,15 +57,18 @@ int main(void)
 
     WrenVM* vm = wrenNewVM(&config);
 
-    printf("hello, world\n");
+    int fp = dfs_open("test.wren");
+    void *script = malloc( dfs_size( fp ) );
+    dfs_read( script, 1, dfs_size( fp ), fp );
+    dfs_close( fp );
 
     WrenInterpretResult result = wrenInterpret(
             vm,
             "my_module",
-            "System.print(\"VM check: OK!\")");
+            (const char*)script);
         result = result;
 
-    
+
 
     /* Main loop test */
     while(1) 
