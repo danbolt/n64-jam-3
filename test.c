@@ -95,7 +95,7 @@ int main(void)
     WrenInterpretResult result = wrenInterpret(
             vm,
             "my_module",
-            "import \"test.wren\" for Test\nvar t = Test.new()\nt.execute()");
+            "import \"main_game.wren\" for Gameplay\nGameplay.execute()");
         result = result;
 
 
