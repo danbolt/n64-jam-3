@@ -10,6 +10,8 @@
 static resolution_t res = RESOLUTION_640x240;
 static bitdepth_t bit = DEPTH_16_BPP;
 
+static uint32_t screenColor = 0;
+
 void finishedLoadingModule(WrenVM* vm, const char* name, struct WrenLoadModuleResult result) {
     if (result.source) {
         free((void*)(result.source));
@@ -71,6 +73,23 @@ void wrenErr(
   }
 }
 
+void setScreenColor(WrenVM* vm) {
+  int r = wrenGetSlotDouble(vm, 1);
+  int g = wrenGetSlotDouble(vm, 2);
+  int b = wrenGetSlotDouble(vm, 3);
+
+  screenColor = graphics_make_color(r, g, b, 255);
+}
+
+
+WrenForeignMethodFn bindForeignMethodToWren(WrenVM* vm, const char* module, const char* className, bool isStatic, const char* signature) {
+    if ((strcmp(module, "view.wren") == 0) && (strcmp(className, "View") == 0) && isStatic && (strcmp(signature, "setScreenColor(_,_,_)") == 0)) {
+        return setScreenColor;
+    }
+
+    return NULL;
+}
+
 int main(void)
 {
     /* Initialize peripherals */
@@ -82,6 +101,7 @@ int main(void)
     WrenConfiguration config;
     wrenInitConfiguration(&config);
     config.loadModuleFn = loadModule;
+    config.bindForeignMethodFn = &bindForeignMethodToWren;
     config.writeFn= &wrenWrite;
     config.errorFn = &wrenErr;
 
@@ -110,7 +130,7 @@ int main(void)
         while( !(disp = display_lock()) );
        
         /*Fill the screen */
-        graphics_fill_screen( disp, 0 );
+        graphics_fill_screen( disp, screenColor );
 
         sprintf(tStr, "Video mode: %lu\n", *((uint32_t *)0x80000300));
         graphics_draw_text( disp, 20, 20, tStr );

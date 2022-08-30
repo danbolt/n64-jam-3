@@ -1,10 +1,9 @@
-import "test.wren" for Test
+import "view.wren" for View
 
 class Gameplay {
   static execute() {
     System.print("game started!")
 
-    var t = Test.new()
-    t.execute()
+    View.setScreenColor(255, 0, 0)
   }
 }
