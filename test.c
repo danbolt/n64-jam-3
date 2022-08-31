@@ -16,6 +16,11 @@ static color_t targetScreenColor;
 #define ONSCREEN_TEXT_BUFFER_SIZE 512
 static char onscreenText[ONSCREEN_TEXT_BUFFER_SIZE];
 
+static WrenVM* vm = NULL;
+static WrenHandle* gameStateHandle = NULL;
+static WrenHandle* hasNextLineHandle = NULL;
+static WrenHandle* getNextLineHandle = NULL;
+
 void finishedLoadingModule(WrenVM* vm, const char* name, struct WrenLoadModuleResult result) {
     if (result.source) {
         free((void*)(result.source));
@@ -83,18 +88,9 @@ void setScreenColor(WrenVM* vm) {
   targetScreenColor.b = (uint8_t)wrenGetSlotDouble(vm, 3);
 }
 
-void displayText(WrenVM* vm) {
-    onscreenText[0] = '\0';
-
-    const char* textToDisplay = wrenGetSlotString(vm, 1);
-    strncpy(onscreenText, textToDisplay, ONSCREEN_TEXT_BUFFER_SIZE - 1);
-}
-
 WrenForeignMethodFn bindForeignMethodToWren(WrenVM* vm, const char* module, const char* className, bool isStatic, const char* signature) {
     if ((strcmp(module, "view.wren") == 0) && (strcmp(className, "View") == 0) && isStatic && (strcmp(signature, "setScreenColor(_,_,_)") == 0)) {
         return setScreenColor;
-    } else if ((strcmp(module, "view.wren") == 0) && (strcmp(className, "View") == 0) && isStatic && (strcmp(signature, "displayText(_)") == 0)) {
-        return displayText;
     }
 
     return NULL;
@@ -105,6 +101,29 @@ void initGame() {
     targetScreenColor = (color_t){ 0, 0, 0, 255 };
 
     onscreenText[0] = '\0';
+
+    WrenConfiguration config;
+    wrenInitConfiguration(&config);
+    config.loadModuleFn = loadModule;
+    config.bindForeignMethodFn = &bindForeignMethodToWren;
+    config.writeFn= &wrenWrite;
+    config.errorFn = &wrenErr;
+    config.initialHeapSize = 1024 * 500; // Really agressive heap stuff ; we don't have a lot of space!
+    config.minHeapSize = 1024 * 10;
+    config.heapGrowthPercent = 10;
+
+    vm = wrenNewVM(&config);
+    WrenInterpretResult result = wrenInterpret(
+            vm,
+            "my_module",
+            "import \"main_game.wren\" for Gameplay\nGameplay.execute()");
+    result = result;
+
+    wrenEnsureSlots(vm, 1);
+    wrenGetVariable(vm, "main_game.wren", "GameState", 0);
+    gameStateHandle = wrenGetSlotHandle(vm, 0);
+    hasNextLineHandle = wrenMakeCallHandle(vm, "hasNextLine()");
+    getNextLineHandle = wrenMakeCallHandle(vm, "getNextLine()");
 }
 
 // TODO: Use a math library or move this
@@ -124,6 +143,18 @@ void tickLogic() {
     screenColor.r = (uint8_t)lerp((float)(screenColor.r), (float)(targetScreenColor.r), 0.13f);
     screenColor.g = (uint8_t)lerp((float)(screenColor.g), (float)(targetScreenColor.g), 0.13f);
     screenColor.b = (uint8_t)lerp((float)(screenColor.b), (float)(targetScreenColor.b), 0.13f);
+
+    wrenEnsureSlots(vm, 1);
+    wrenSetSlotHandle(vm, 0, gameStateHandle);
+    wrenCall(vm, hasNextLineHandle);
+    int hasNextLine = wrenGetSlotBool(vm, 0);
+    
+    if (hasNextLine) {
+        wrenSetSlotHandle(vm, 0, gameStateHandle);
+        wrenCall(vm, getNextLineHandle);
+        const char* nextLineText = wrenGetSlotString(vm, 0);
+        strncpy(onscreenText, nextLineText, ONSCREEN_TEXT_BUFFER_SIZE - 1);
+    }
 }
 
 void tickDisplay() {
@@ -151,27 +182,7 @@ int main(void)
     controller_init();
     debug_init_isviewer();
 
-    WrenConfiguration config;
-    wrenInitConfiguration(&config);
-    config.loadModuleFn = loadModule;
-    config.bindForeignMethodFn = &bindForeignMethodToWren;
-    config.writeFn= &wrenWrite;
-    config.errorFn = &wrenErr;
-
-    // Really agressive heap stuff ; we don't have a lot of space!
-    config.initialHeapSize = 1024 * 500;
-    config.minHeapSize = 1024 * 10;
-    config.heapGrowthPercent = 10;
-
     initGame();
-
-    WrenVM* vm = wrenNewVM(&config);
-
-    WrenInterpretResult result = wrenInterpret(
-            vm,
-            "my_module",
-            "import \"main_game.wren\" for Gameplay\nGameplay.execute()");
-    result = result;
 
     /* Main loop test */
     while(1) 
