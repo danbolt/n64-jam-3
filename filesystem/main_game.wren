@@ -2,10 +2,16 @@ import "view.wren" for View
 
 import "screen_color_change_line.wren" for ScreenColorChangeLine
 
+import "area.wren" for Area
+import "game_world.wren" for GameWorld
+
 class GameState {
   static initialize() {
     __currentIndex = 0
     __lines = []
+
+    __current_room = null
+    moveToRoom("starting_room")
   }
 
   static setLines(lines) {
@@ -37,12 +43,18 @@ class GameState {
     return "There was some sort of error with the line type."
   }
 
+  static moveToRoom(roomKey) {
+    __current_room = GameWorld.areas()[roomKey]
+
+    setLines(__current_room.brief())
+  }
+
   static look() {
     if (hasNextLine()) {
       Fiber.abort("Tried to look when there was a line ready!")
     }
 
-    setLines(["We looked!"])
+    setLines(__current_room.description())
   }
 
   static investigate() {
@@ -83,6 +95,5 @@ class Gameplay {
     View.setScreenColor(100, 100, 100)
 
     GameState.initialize()
-    GameState.setLines(["We're in a normal place", ScreenColorChangeLine.new("Now we're in the ocean", 0, 0, 200), ScreenColorChangeLine.new("Now we're in the sky!", 0, 200, 200)])
   }
 }

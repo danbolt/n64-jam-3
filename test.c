@@ -138,7 +138,7 @@ void initGame() {
     config.errorFn = &wrenErr;
     config.initialHeapSize = 1024 * 500; // Really agressive heap stuff ; we don't have a lot of space!
     config.minHeapSize = 1024 * 10;
-    config.heapGrowthPercent = 10;
+    config.heapGrowthPercent = 10; // This should probably be zero at some point so we can stay within 4MB
 
     vm = wrenNewVM(&config);
     WrenInterpretResult result = wrenInterpret(
