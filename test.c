@@ -191,17 +191,42 @@ void tickLogic() {
         malloc_stats();
     }
 
-    if (keys.c[0].A) {
-        if (hasNextLine()) {
-            showNextLine();
-        }
-    }
-
     if (!hasNextLine()) {
         if (keys.c[0].left) {
             selectedActionIndex = (Action)(((int)selectedActionIndex - 1 + (int)ActionCount) % (int)ActionCount);
         } else if (keys.c[0].right) {
             selectedActionIndex = (Action)((((int)selectedActionIndex + 1) % (int)ActionCount));
+        }
+
+        if (keys.c[0].A) {
+            wrenSetSlotHandle(vm, 0, gameStateHandle);
+            switch(selectedActionIndex) {
+                case Look:
+                    wrenCall(vm, lookHandle);
+                    break;
+                case Check:
+                    wrenCall(vm, investigateHandle);
+                    break;
+                case Talk:
+                    wrenCall(vm, talkHandle);
+                    break;
+                case Item:
+                    wrenCall(vm, itemHandle);
+                    break;
+                case Move:
+                    wrenCall(vm, moveHandle);
+                    break;
+                default:
+                    break;
+            }
+
+            if (hasNextLine()) {
+                showNextLine();
+            }
+        }
+    } else {
+        if (keys.c[0].A) {
+            showNextLine();
         }
     }
 
