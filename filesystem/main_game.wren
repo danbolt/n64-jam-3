@@ -2,20 +2,25 @@ import "view.wren" for View
 
 class GameState {
   static initialize() {
-    __hasNextLineReady = true
-    __nextLine = "This is the next line"
+    __currentIndex = 0
+    __lines = []
+  }
+
+  static setLines(lines) {
+    __currentIndex = 0
+    __lines = lines
   }
 
   static hasNextLine() {
-    return __hasNextLineReady
+    return __currentIndex < __lines.count
   }
 
   static getNextLine() {
-    if (!__hasNextLineReady) {
+    if (!hasNextLine()) {
       return ""
     } else {
-      __hasNextLineReady = false
-      return __nextLine
+      __currentIndex = __currentIndex + 1
+      return __lines[__currentIndex - 1]
     }
   }
 }
@@ -25,5 +30,6 @@ class Gameplay {
     View.setScreenColor(100, 100, 100)
 
     GameState.initialize()
+    GameState.setLines(["a", "b", "c"])
   }
 }
