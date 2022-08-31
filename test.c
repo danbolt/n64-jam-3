@@ -131,6 +131,24 @@ float lerp(float a, float b, float t) {
     return a + (b - a) * t;
 }
 
+bool hasNextLine() {
+    wrenEnsureSlots(vm, 1);
+    wrenSetSlotHandle(vm, 0, gameStateHandle);
+    wrenCall(vm, hasNextLineHandle);
+    return wrenGetSlotBool(vm, 0);;
+}
+
+void showNextLine() {
+    if (!hasNextLine()) {
+        return;
+    }
+
+    wrenSetSlotHandle(vm, 0, gameStateHandle);
+    wrenCall(vm, getNextLineHandle);
+    const char* nextLineText = wrenGetSlotString(vm, 0);
+    strncpy(onscreenText, nextLineText, ONSCREEN_TEXT_BUFFER_SIZE - 1);
+}
+
 void tickLogic() {
     controller_scan();
     struct controller_data keys = get_keys_down();
@@ -140,21 +158,15 @@ void tickLogic() {
         malloc_stats();
     }
 
+    if (keys.c[0].A) {
+        if (hasNextLine()) {
+            showNextLine();
+        }
+    }
+
     screenColor.r = (uint8_t)lerp((float)(screenColor.r), (float)(targetScreenColor.r), 0.13f);
     screenColor.g = (uint8_t)lerp((float)(screenColor.g), (float)(targetScreenColor.g), 0.13f);
     screenColor.b = (uint8_t)lerp((float)(screenColor.b), (float)(targetScreenColor.b), 0.13f);
-
-    wrenEnsureSlots(vm, 1);
-    wrenSetSlotHandle(vm, 0, gameStateHandle);
-    wrenCall(vm, hasNextLineHandle);
-    int hasNextLine = wrenGetSlotBool(vm, 0);
-    
-    if (hasNextLine) {
-        wrenSetSlotHandle(vm, 0, gameStateHandle);
-        wrenCall(vm, getNextLineHandle);
-        const char* nextLineText = wrenGetSlotString(vm, 0);
-        strncpy(onscreenText, nextLineText, ONSCREEN_TEXT_BUFFER_SIZE - 1);
-    }
 }
 
 void tickDisplay() {
