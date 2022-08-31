@@ -19,7 +19,7 @@ class GameState {
 
   static getNextLine() {
     if (!hasNextLine()) {
-      return ""
+      return "(no line available)"
     }
 
     var nextLine = __lines[__currentIndex]
@@ -35,6 +35,46 @@ class GameState {
     }
 
     return "There was some sort of error with the line type."
+  }
+
+  static look() {
+    if (hasNextLine()) {
+      Fiber.abort("Tried to look when there was a line ready!")
+    }
+
+    setLines(["We looked!"])
+  }
+
+  static investigate() {
+    if (hasNextLine()) {
+      Fiber.abort("Tried to investigate when there was a line ready!")
+    }
+
+    setLines(["We investigated!"])
+  }
+
+  static talk() {
+    if (hasNextLine()) {
+      Fiber.abort("Tried to talk when there was a line ready!")
+    }
+
+    setLines(["We talked!"])
+  }
+
+  static item() {
+    if (hasNextLine()) {
+      Fiber.abort("Tried to item when there was a line ready!")
+    }
+
+    setLines(["We itemed!"])
+  }
+
+  static move() {
+    if (hasNextLine()) {
+      Fiber.abort("Tried to move when there was a line ready!")
+    }
+
+    setLines(["We moved!"])
   }
 }
 

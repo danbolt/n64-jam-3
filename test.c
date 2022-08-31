@@ -13,6 +13,8 @@ static bitdepth_t bit = DEPTH_16_BPP;
 static color_t screenColor;
 static color_t targetScreenColor;
 
+static sprite_t* buttonsSprite;
+
 #define ONSCREEN_TEXT_BUFFER_SIZE 512
 static char onscreenText[ONSCREEN_TEXT_BUFFER_SIZE];
 
@@ -20,6 +22,22 @@ static WrenVM* vm = NULL;
 static WrenHandle* gameStateHandle = NULL;
 static WrenHandle* hasNextLineHandle = NULL;
 static WrenHandle* getNextLineHandle = NULL;
+static WrenHandle* lookHandle = NULL;
+static WrenHandle* investigateHandle = NULL;
+static WrenHandle* talkHandle = NULL;
+static WrenHandle* itemHandle = NULL;
+static WrenHandle* moveHandle = NULL;
+
+typedef enum {
+    Look = 0,
+    Check,
+    Talk,
+    Item,
+    Move,
+
+    ActionCount
+} Action;
+static Action selectedActionIndex;
 
 void finishedLoadingModule(WrenVM* vm, const char* name, struct WrenLoadModuleResult result) {
     if (result.source) {
@@ -96,11 +114,21 @@ WrenForeignMethodFn bindForeignMethodToWren(WrenVM* vm, const char* module, cons
     return NULL;
 }
 
+void initHUDSprites() {
+    int fp = dfs_open("buttons.sprite");
+    buttonsSprite = malloc( dfs_size( fp ) );
+    dfs_read( buttonsSprite, 1, dfs_size( fp ), fp );
+    dfs_close( fp );
+}
+
 void initGame() {
     screenColor = (color_t){ 0, 0, 0, 255 };
     targetScreenColor = (color_t){ 0, 0, 0, 255 };
 
     onscreenText[0] = '\0';
+
+    initHUDSprites();
+    selectedActionIndex = Look;
 
     WrenConfiguration config;
     wrenInitConfiguration(&config);
@@ -124,6 +152,11 @@ void initGame() {
     gameStateHandle = wrenGetSlotHandle(vm, 0);
     hasNextLineHandle = wrenMakeCallHandle(vm, "hasNextLine()");
     getNextLineHandle = wrenMakeCallHandle(vm, "getNextLine()");
+    lookHandle = wrenMakeCallHandle(vm, "look()");
+    investigateHandle = wrenMakeCallHandle(vm, "investigate()");
+    talkHandle = wrenMakeCallHandle(vm, "talk()");
+    itemHandle = wrenMakeCallHandle(vm, "item()");
+    moveHandle = wrenMakeCallHandle(vm, "move()");
 }
 
 // TODO: Use a math library or move this
@@ -164,6 +197,14 @@ void tickLogic() {
         }
     }
 
+    if (!hasNextLine()) {
+        if (keys.c[0].left) {
+            selectedActionIndex = (Action)(((int)selectedActionIndex - 1 + (int)ActionCount) % (int)ActionCount);
+        } else if (keys.c[0].right) {
+            selectedActionIndex = (Action)((((int)selectedActionIndex + 1) % (int)ActionCount));
+        }
+    }
+
     screenColor.r = (uint8_t)lerp((float)(screenColor.r), (float)(targetScreenColor.r), 0.13f);
     screenColor.g = (uint8_t)lerp((float)(screenColor.g), (float)(targetScreenColor.g), 0.13f);
     screenColor.b = (uint8_t)lerp((float)(screenColor.b), (float)(targetScreenColor.b), 0.13f);
@@ -177,6 +218,16 @@ void tickDisplay() {
     graphics_fill_screen( disp, graphics_convert_color(screenColor) );
 
     graphics_draw_text(disp, 22, 16, onscreenText);
+
+    if (!hasNextLine()) {
+        for (int i = 0; i < (int)(ActionCount); i++) {
+            graphics_draw_sprite_stride(disp, 16 + (32 * i), 240 - 22, buttonsSprite, i);
+
+            if (i == (Action)selectedActionIndex) {
+                graphics_draw_sprite_trans_stride(disp, 16 + (32 * i), 240 - 22, buttonsSprite, 7);
+            }
+        }
+    }
 
     display_show(disp);
 }
