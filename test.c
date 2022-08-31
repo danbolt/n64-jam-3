@@ -13,6 +13,9 @@ static bitdepth_t bit = DEPTH_16_BPP;
 static color_t screenColor;
 static color_t targetScreenColor;
 
+#define ONSCREEN_TEXT_BUFFER_SIZE 512
+static char onscreenText[ONSCREEN_TEXT_BUFFER_SIZE];
+
 void finishedLoadingModule(WrenVM* vm, const char* name, struct WrenLoadModuleResult result) {
     if (result.source) {
         free((void*)(result.source));
@@ -80,10 +83,18 @@ void setScreenColor(WrenVM* vm) {
   targetScreenColor.b = (uint8_t)wrenGetSlotDouble(vm, 3);
 }
 
+void displayText(WrenVM* vm) {
+    onscreenText[0] = '\0';
+
+    const char* textToDisplay = wrenGetSlotString(vm, 1);
+    strncpy(onscreenText, textToDisplay, ONSCREEN_TEXT_BUFFER_SIZE - 1);
+}
 
 WrenForeignMethodFn bindForeignMethodToWren(WrenVM* vm, const char* module, const char* className, bool isStatic, const char* signature) {
     if ((strcmp(module, "view.wren") == 0) && (strcmp(className, "View") == 0) && isStatic && (strcmp(signature, "setScreenColor(_,_,_)") == 0)) {
         return setScreenColor;
+    } else if ((strcmp(module, "view.wren") == 0) && (strcmp(className, "View") == 0) && isStatic && (strcmp(signature, "displayText(_)") == 0)) {
+        return displayText;
     }
 
     return NULL;
@@ -92,6 +103,8 @@ WrenForeignMethodFn bindForeignMethodToWren(WrenVM* vm, const char* module, cons
 void initGame() {
     screenColor = (color_t){ 0, 0, 0, 255 };
     targetScreenColor = (color_t){ 0, 0, 0, 255 };
+
+    onscreenText[0] = '\0';
 }
 
 // TODO: Use a math library or move this
@@ -116,11 +129,11 @@ void tickLogic() {
 void tickDisplay() {
     static display_context_t disp = 0;
 
-    /* Grab a render buffer */
     while( !(disp = display_lock()) );
    
-    /*Fill the screen */
     graphics_fill_screen( disp, graphics_convert_color(screenColor) );
+
+    graphics_draw_text(disp, 22, 16, onscreenText);
 
     display_show(disp);
 }
