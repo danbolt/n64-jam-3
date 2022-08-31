@@ -10,7 +10,8 @@
 static resolution_t res = RESOLUTION_640x240;
 static bitdepth_t bit = DEPTH_16_BPP;
 
-static uint32_t screenColor = 0;
+static color_t screenColor;
+static color_t targetScreenColor;
 
 void finishedLoadingModule(WrenVM* vm, const char* name, struct WrenLoadModuleResult result) {
     if (result.source) {
@@ -74,11 +75,9 @@ void wrenErr(
 }
 
 void setScreenColor(WrenVM* vm) {
-  int r = wrenGetSlotDouble(vm, 1);
-  int g = wrenGetSlotDouble(vm, 2);
-  int b = wrenGetSlotDouble(vm, 3);
-
-  screenColor = graphics_make_color(r, g, b, 255);
+  targetScreenColor.r = (uint8_t)wrenGetSlotDouble(vm, 1);
+  targetScreenColor.g = (uint8_t)wrenGetSlotDouble(vm, 2);
+  targetScreenColor.b = (uint8_t)wrenGetSlotDouble(vm, 3);
 }
 
 
@@ -88,6 +87,47 @@ WrenForeignMethodFn bindForeignMethodToWren(WrenVM* vm, const char* module, cons
     }
 
     return NULL;
+}
+
+void initGame() {
+    screenColor = (color_t){ 0, 0, 0, 255 };
+    targetScreenColor = (color_t){ 0, 0, 0, 255 };
+}
+
+// TODO: Use a math library or move this
+float lerp(float a, float b, float t) {
+    return a + (b - a) * t;
+}
+
+void tickLogic() {
+    controller_scan();
+    struct controller_data keys = get_keys_down();
+
+    if( keys.c[0].C_up )
+    {
+        malloc_stats();
+    }
+
+    screenColor.r = (uint8_t)lerp((float)(screenColor.r), (float)(targetScreenColor.r), 0.13f);
+    screenColor.g = (uint8_t)lerp((float)(screenColor.g), (float)(targetScreenColor.g), 0.13f);
+    screenColor.b = (uint8_t)lerp((float)(screenColor.b), (float)(targetScreenColor.b), 0.13f);
+}
+
+void tickDisplay() {
+    static display_context_t disp = 0;
+
+    /* Grab a render buffer */
+    while( !(disp = display_lock()) );
+   
+    /*Fill the screen */
+    graphics_fill_screen( disp, graphics_convert_color(screenColor) );
+
+    display_show(disp);
+}
+
+void tick() {
+    tickDisplay();
+    tickLogic();
 }
 
 int main(void)
@@ -110,42 +150,19 @@ int main(void)
     config.minHeapSize = 1024 * 10;
     config.heapGrowthPercent = 10;
 
+    initGame();
+
     WrenVM* vm = wrenNewVM(&config);
 
     WrenInterpretResult result = wrenInterpret(
             vm,
             "my_module",
             "import \"main_game.wren\" for Gameplay\nGameplay.execute()");
-        result = result;
-
-
+    result = result;
 
     /* Main loop test */
     while(1) 
     {
-        char tStr[256];
-        static display_context_t disp = 0;
-
-        /* Grab a render buffer */
-        while( !(disp = display_lock()) );
-       
-        /*Fill the screen */
-        graphics_fill_screen( disp, screenColor );
-
-        sprintf(tStr, "Video mode: %lu\n", *((uint32_t *)0x80000300));
-        graphics_draw_text( disp, 20, 20, tStr );
-        sprintf(tStr, "memory size: %d\n", get_memory_size());
-        graphics_draw_text( disp, 20, 30, tStr );
-
-        display_show(disp);
-
-        /* Do we need to switch video displays? */
-        controller_scan();
-        struct controller_data keys = get_keys_down();
-
-        if( keys.c[0].C_up )
-        {
-            malloc_stats();
-        }
+        tick();
     }
 }
