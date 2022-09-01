@@ -15,6 +15,12 @@ static color_t targetScreenColor;
 
 static sprite_t* buttonsSprite;
 
+static unsigned long lastTimeInTicks;
+
+static int bippingText;
+static int currentTextIndex;
+static unsigned long bipDelta;
+
 #define ONSCREEN_TEXT_BUFFER_SIZE 512
 static char onscreenText[ONSCREEN_TEXT_BUFFER_SIZE];
 
@@ -146,6 +152,9 @@ void showNextLine() {
     wrenCall(vm, getNextLineHandle);
     const char* nextLineText = wrenGetSlotString(vm, 0);
     strncpy(onscreenText, nextLineText, ONSCREEN_TEXT_BUFFER_SIZE - 1);
+
+    bippingText = 1;
+    currentTextIndex = 0;
 }
 
 void initHUDSprites() {
@@ -202,12 +211,18 @@ void initGame() {
     itemHandle = wrenMakeCallHandle(vm, "item()");
     moveHandle = wrenMakeCallHandle(vm, "move(_)");
 
+    bippingText = 0;
+    currentTextIndex = 0;
     showNextLine();
+
+    lastTimeInTicks = get_ticks();
 }
 
 void tickLogic() {
     controller_scan();
     struct controller_data keys = get_keys_down();
+
+    unsigned long currentTimeInTicks = get_ticks();
 
     if( keys.c[0].C_up )
     {
@@ -252,8 +267,21 @@ void tickLogic() {
         } else if (keys.c[0].up) {
             selectedExitIndex = (selectedExitIndex - 1 + numberOfOnscreenExits) % numberOfOnscreenExits;
         }
-    }
-    else if (!hasNextLine()) {
+    } else if (bippingText) {
+        if (onscreenText[currentTextIndex] == '\0') {
+            bippingText = 0;
+        } else {
+            bipDelta += currentTimeInTicks - lastTimeInTicks;
+            if (bipDelta > TICKS_FROM_MS(115)) {
+                bipDelta = 0;
+                currentTextIndex++;
+            }
+        }
+
+        if (keys.c[0].A) {
+            bippingText = 0;
+        }
+    } else if (!hasNextLine()) {
         if (keys.c[0].left) {
             selectedActionIndex = (Action)(((int)selectedActionIndex - 1 + (int)ActionCount) % (int)ActionCount);
         } else if (keys.c[0].right) {
@@ -321,6 +349,8 @@ void tickLogic() {
     screenColor.r = (uint8_t)lerp((float)(screenColor.r), (float)(targetScreenColor.r), 0.13f);
     screenColor.g = (uint8_t)lerp((float)(screenColor.g), (float)(targetScreenColor.g), 0.13f);
     screenColor.b = (uint8_t)lerp((float)(screenColor.b), (float)(targetScreenColor.b), 0.13f);
+
+    lastTimeInTicks = currentTimeInTicks;
 }
 
 void tickDisplay() {
@@ -351,9 +381,29 @@ void tickDisplay() {
             }
         }
     } else {
-        graphics_draw_text(disp, 22, 16, onscreenText);
+        if (bippingText) {
+            int tx = 22;
+            int ty = 16;
+            
+            // HACK: use a custom font for this
+            for (int i = 0; i < currentTextIndex; i++) {
+                if (onscreenText[i] == ' ') {
+                    tx += 8;
+                } else if (onscreenText[i] == '\n') {
+                    tx = 22;
 
-        if (!hasNextLine()) {
+                    ty += 8;
+                } else {
+                    graphics_draw_character(disp, tx, ty, onscreenText[i]);
+                    tx += 8;
+                }
+
+            }
+        } else {
+            graphics_draw_text(disp, 22, 16, onscreenText);
+        }
+
+        if (!hasNextLine() && !bippingText) {
             for (int i = 0; i < (int)(ActionCount); i++) {
                 graphics_draw_sprite_stride(disp, 16 + (32 * i), 240 - 22, buttonsSprite, i);
 
