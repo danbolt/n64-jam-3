@@ -1,15 +1,41 @@
 import "area.wren" for Area
+import "person.wren" for Person
+
+class TestPerson is Person {
+  construct new() {
+    brief = "Some person"
+    talkLines = [
+      "\"Hey\", mutters the person.",
+      "\"I'm just here as a test conversation\", they continue...",
+      "\"Don't overthink it, okay?\""
+    ]
+  }
+}
+
+class OtherPerson is Person {
+  construct new() {
+    brief = "The other person"
+    talkLines = [
+      "\"Ugh, no thanks!\"",
+      "They rebuff you quickly."
+    ]
+  }
+}
 
 class StartingRoom is Area {
   construct new() {
-    brief = "You're in a plain-looking room."
+    brief = "You're in a plain-looking room with two people."
     description = [
       "You're in a dull room. There are four white walls.",
       "The the floor is made of polished hardwood. You can't see any scuffs.",
+      "There's a test person, and an other person too.\n\nWow!",
       "The only distinguishing feature is a sole exit."
     ]
     objects = []
-    people = []
+    people = [
+      TestPerson.new(),
+      OtherPerson.new()
+    ]
     exits = {
       "The sole exit": "other_room"
     }

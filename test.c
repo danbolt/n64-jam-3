@@ -18,7 +18,9 @@ static sprite_t* buttonsSprite;
 #define ONSCREEN_TEXT_BUFFER_SIZE 512
 static char onscreenText[ONSCREEN_TEXT_BUFFER_SIZE];
 
-static int inExitModal = 0;
+static int inTalkModal;
+
+static int inExitModal;
 #define MAX_NUMBER_OF_ONSCREEN_EXITS 4
 #define ONSCREEN_EXIT_NAME_SIZE 64
 static char onscreenExitText[MAX_NUMBER_OF_ONSCREEN_EXITS][ONSCREEN_EXIT_NAME_SIZE];
@@ -30,6 +32,7 @@ static WrenHandle* gameStateHandle = NULL;
 static WrenHandle* hasNextLineHandle = NULL;
 static WrenHandle* getNextLineHandle = NULL;
 static WrenHandle* getExitsHandle = NULL;
+static WrenHandle* getPeopleHandle = NULL;
 static WrenHandle* lookHandle = NULL;
 static WrenHandle* investigateHandle = NULL;
 static WrenHandle* talkHandle = NULL;
@@ -158,6 +161,8 @@ void initGame() {
 
     onscreenText[0] = '\0';
 
+    inTalkModal = 0;
+
     inExitModal = 0;
     for (int i = 0; i < MAX_NUMBER_OF_ONSCREEN_EXITS; i++) {
         onscreenExitText[i][0] = '\0';
@@ -190,9 +195,10 @@ void initGame() {
     hasNextLineHandle = wrenMakeCallHandle(vm, "hasNextLine()");
     getNextLineHandle = wrenMakeCallHandle(vm, "getNextLine()");
     getExitsHandle = wrenMakeCallHandle(vm, "getExits()");
+    getPeopleHandle = wrenMakeCallHandle(vm, "getPeople()");
     lookHandle = wrenMakeCallHandle(vm, "look()");
     investigateHandle = wrenMakeCallHandle(vm, "investigate()");
-    talkHandle = wrenMakeCallHandle(vm, "talk()");
+    talkHandle = wrenMakeCallHandle(vm, "talk(_)");
     itemHandle = wrenMakeCallHandle(vm, "item()");
     moveHandle = wrenMakeCallHandle(vm, "move(_)");
 
@@ -208,7 +214,26 @@ void tickLogic() {
         malloc_stats();
     }
 
-    if (inExitModal) {
+     if (inTalkModal) {
+        if (keys.c[0].B) {
+            inTalkModal = 0;
+        } else if (keys.c[0].A) {
+
+            wrenEnsureSlots(vm, 2);
+            wrenSetSlotHandle(vm, 0, gameStateHandle);
+            wrenSetSlotString(vm, 1, onscreenExitText[selectedExitIndex]);
+            wrenCall(vm, talkHandle);
+
+            if (hasNextLine()) {
+                showNextLine();
+            }
+            inTalkModal = 0;
+        } else if (keys.c[0].down) {
+            selectedExitIndex = (selectedExitIndex + 1) % numberOfOnscreenExits;
+        } else if (keys.c[0].up) {
+            selectedExitIndex = (selectedExitIndex - 1 + numberOfOnscreenExits) % numberOfOnscreenExits;
+        }
+     } else if (inExitModal) {
         if (keys.c[0].B) {
             inExitModal = 0;
         } else if (keys.c[0].A) {
@@ -245,7 +270,21 @@ void tickLogic() {
                     wrenCall(vm, investigateHandle);
                     break;
                 case Talk:
-                    wrenCall(vm, talkHandle);
+                    wrenCall(vm, getPeopleHandle);
+                    numberOfOnscreenExits = wrenGetListCount(vm, 0);
+                    if (numberOfOnscreenExits > 0) {
+                        if (numberOfOnscreenExits > MAX_NUMBER_OF_ONSCREEN_EXITS) {
+                            numberOfOnscreenExits = MAX_NUMBER_OF_ONSCREEN_EXITS;
+                        }
+                        for (int i = 0; i < numberOfOnscreenExits; i++) {
+                            wrenGetListElement(vm, 0, i, 1);
+                            const char* personName = wrenGetSlotString(vm, 1);
+                            strncpy(onscreenExitText[i], personName, ONSCREEN_EXIT_NAME_SIZE);
+                            onscreenExitText[i][ONSCREEN_EXIT_NAME_SIZE - 1] = '\0';
+                        }
+                        selectedExitIndex = 0;
+                        inTalkModal = 1;
+                    }
                     break;
                 case Item:
                     wrenCall(vm, itemHandle);
@@ -291,7 +330,17 @@ void tickDisplay() {
    
     graphics_fill_screen( disp, graphics_convert_color(screenColor) );
 
-    if (inExitModal) {
+    if (inTalkModal) {
+        graphics_draw_text(disp, 22, 16, "Talk to...");
+
+        for (int i = 0; i < numberOfOnscreenExits; i++) {
+            graphics_draw_text(disp, 22 + 32, 16 + 16 + (16 * i), onscreenExitText[i]);
+
+            if (i == selectedExitIndex) {
+                graphics_draw_text(disp, 22 + 16, 16 + 16 + (16 * i), ">");
+            }
+        }
+    } else if (inExitModal) {
         graphics_draw_text(disp, 22, 16, "Move to...");
 
         for (int i = 0; i < numberOfOnscreenExits; i++) {
