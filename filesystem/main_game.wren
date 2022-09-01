@@ -2,7 +2,6 @@ import "view.wren" for View
 
 import "screen_color_change_line.wren" for ScreenColorChangeLine
 
-import "area.wren" for Area
 import "game_world.wren" for GameWorld
 
 class GameState {
@@ -43,8 +42,16 @@ class GameState {
     return "There was some sort of error with the line type."
   }
 
+  static getExits() {
+    return __current_room.exits().keys.toList
+  }
+
   static moveToRoom(roomKey) {
-    __current_room = GameWorld.areas()[roomKey]
+    if (__current_room == null) {
+      __current_room = GameWorld.areas()[roomKey]
+    } else {
+      __current_room = GameWorld.areas()[__current_room.exits()[roomKey]]
+    }
 
     setLines(__current_room.brief())
   }
@@ -81,12 +88,14 @@ class GameState {
     setLines(["We itemed!"])
   }
 
-  static move() {
+  static move(roomKey) {
     if (hasNextLine()) {
       Fiber.abort("Tried to move when there was a line ready!")
     }
 
-    setLines(["We moved!"])
+    System.print("Moving to %(roomKey)")
+
+    moveToRoom(roomKey)
   }
 }
 

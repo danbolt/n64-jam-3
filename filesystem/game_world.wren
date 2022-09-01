@@ -22,12 +22,28 @@ class OtherRoom is Area {
     description = [
       "This room kinda sucks.",
       "You're not terribly impressed.",
-      "The only other way to go is back the way you came."
+      "You can go further, or turn back."
     ]
     objects = []
     people = []
     exits = {
-      "Back the way you came": "starting_room"
+      "Back the way you came": "starting_room",
+      "Go further": "other_other_room"
+    }
+  }
+}
+
+class OtherOtherRoom is Area {
+  construct new() {
+    brief = "You enter the other OTHER room."
+    description = [
+      "This room is a little better.",
+      "Nothing else to report."
+    ]
+    objects = []
+    people = []
+    exits = {
+      "Back to the worst room": "other_room"
     }
   }
 }
@@ -36,7 +52,8 @@ class GameWorld {
   static areas() {
     return {
       "starting_room": StartingRoom.new(),
-      "other_room": OtherRoom.new()
+      "other_room": OtherRoom.new(),
+      "other_other_room": OtherOtherRoom.new()
     }
   }
 }

@@ -18,10 +18,18 @@ static sprite_t* buttonsSprite;
 #define ONSCREEN_TEXT_BUFFER_SIZE 512
 static char onscreenText[ONSCREEN_TEXT_BUFFER_SIZE];
 
+static int inExitModal = 0;
+#define MAX_NUMBER_OF_ONSCREEN_EXITS 4
+#define ONSCREEN_EXIT_NAME_SIZE 64
+static char onscreenExitText[MAX_NUMBER_OF_ONSCREEN_EXITS][ONSCREEN_EXIT_NAME_SIZE];
+static int selectedExitIndex;
+static int numberOfOnscreenExits;
+
 static WrenVM* vm = NULL;
 static WrenHandle* gameStateHandle = NULL;
 static WrenHandle* hasNextLineHandle = NULL;
 static WrenHandle* getNextLineHandle = NULL;
+static WrenHandle* getExitsHandle = NULL;
 static WrenHandle* lookHandle = NULL;
 static WrenHandle* investigateHandle = NULL;
 static WrenHandle* talkHandle = NULL;
@@ -114,6 +122,29 @@ WrenForeignMethodFn bindForeignMethodToWren(WrenVM* vm, const char* module, cons
     return NULL;
 }
 
+// TODO: Use a math library or move this
+float lerp(float a, float b, float t) {
+    return a + (b - a) * t;
+}
+
+bool hasNextLine() {
+    wrenEnsureSlots(vm, 1);
+    wrenSetSlotHandle(vm, 0, gameStateHandle);
+    wrenCall(vm, hasNextLineHandle);
+    return wrenGetSlotBool(vm, 0);;
+}
+
+void showNextLine() {
+    if (!hasNextLine()) {
+        return;
+    }
+
+    wrenSetSlotHandle(vm, 0, gameStateHandle);
+    wrenCall(vm, getNextLineHandle);
+    const char* nextLineText = wrenGetSlotString(vm, 0);
+    strncpy(onscreenText, nextLineText, ONSCREEN_TEXT_BUFFER_SIZE - 1);
+}
+
 void initHUDSprites() {
     int fp = dfs_open("buttons.sprite");
     buttonsSprite = malloc( dfs_size( fp ) );
@@ -126,6 +157,12 @@ void initGame() {
     targetScreenColor = (color_t){ 0, 0, 0, 255 };
 
     onscreenText[0] = '\0';
+
+    inExitModal = 0;
+    for (int i = 0; i < MAX_NUMBER_OF_ONSCREEN_EXITS; i++) {
+        onscreenExitText[i][0] = '\0';
+    }
+    selectedExitIndex = 0;
 
     initHUDSprites();
     selectedActionIndex = Look;
@@ -152,34 +189,14 @@ void initGame() {
     gameStateHandle = wrenGetSlotHandle(vm, 0);
     hasNextLineHandle = wrenMakeCallHandle(vm, "hasNextLine()");
     getNextLineHandle = wrenMakeCallHandle(vm, "getNextLine()");
+    getExitsHandle = wrenMakeCallHandle(vm, "getExits()");
     lookHandle = wrenMakeCallHandle(vm, "look()");
     investigateHandle = wrenMakeCallHandle(vm, "investigate()");
     talkHandle = wrenMakeCallHandle(vm, "talk()");
     itemHandle = wrenMakeCallHandle(vm, "item()");
-    moveHandle = wrenMakeCallHandle(vm, "move()");
-}
+    moveHandle = wrenMakeCallHandle(vm, "move(_)");
 
-// TODO: Use a math library or move this
-float lerp(float a, float b, float t) {
-    return a + (b - a) * t;
-}
-
-bool hasNextLine() {
-    wrenEnsureSlots(vm, 1);
-    wrenSetSlotHandle(vm, 0, gameStateHandle);
-    wrenCall(vm, hasNextLineHandle);
-    return wrenGetSlotBool(vm, 0);;
-}
-
-void showNextLine() {
-    if (!hasNextLine()) {
-        return;
-    }
-
-    wrenSetSlotHandle(vm, 0, gameStateHandle);
-    wrenCall(vm, getNextLineHandle);
-    const char* nextLineText = wrenGetSlotString(vm, 0);
-    strncpy(onscreenText, nextLineText, ONSCREEN_TEXT_BUFFER_SIZE - 1);
+    showNextLine();
 }
 
 void tickLogic() {
@@ -191,7 +208,27 @@ void tickLogic() {
         malloc_stats();
     }
 
-    if (!hasNextLine()) {
+    if (inExitModal) {
+        if (keys.c[0].B) {
+            inExitModal = 0;
+        } else if (keys.c[0].A) {
+
+            wrenEnsureSlots(vm, 2);
+            wrenSetSlotHandle(vm, 0, gameStateHandle);
+            wrenSetSlotString(vm, 1, onscreenExitText[selectedExitIndex]);
+            wrenCall(vm, moveHandle);
+
+            if (hasNextLine()) {
+                showNextLine();
+            }
+            inExitModal = 0;
+        } else if (keys.c[0].down) {
+            selectedExitIndex = (selectedExitIndex + 1) % numberOfOnscreenExits;
+        } else if (keys.c[0].up) {
+            selectedExitIndex = (selectedExitIndex - 1 + numberOfOnscreenExits) % numberOfOnscreenExits;
+        }
+    }
+    else if (!hasNextLine()) {
         if (keys.c[0].left) {
             selectedActionIndex = (Action)(((int)selectedActionIndex - 1 + (int)ActionCount) % (int)ActionCount);
         } else if (keys.c[0].right) {
@@ -214,7 +251,19 @@ void tickLogic() {
                     wrenCall(vm, itemHandle);
                     break;
                 case Move:
-                    wrenCall(vm, moveHandle);
+                    wrenCall(vm, getExitsHandle);
+                    numberOfOnscreenExits = wrenGetListCount(vm, 0);
+                    if (numberOfOnscreenExits > MAX_NUMBER_OF_ONSCREEN_EXITS) {
+                        numberOfOnscreenExits = MAX_NUMBER_OF_ONSCREEN_EXITS;
+                    }
+                    for (int i = 0; i < numberOfOnscreenExits; i++) {
+                        wrenGetListElement(vm, 0, i, 1);
+                        const char* exitName = wrenGetSlotString(vm, 1);
+                        strncpy(onscreenExitText[i], exitName, ONSCREEN_EXIT_NAME_SIZE);
+                        onscreenExitText[i][ONSCREEN_EXIT_NAME_SIZE - 1] = '\0';
+                    }
+                    selectedExitIndex = 0;
+                    inExitModal = 1;
                     break;
                 default:
                     break;
@@ -242,14 +291,26 @@ void tickDisplay() {
    
     graphics_fill_screen( disp, graphics_convert_color(screenColor) );
 
-    graphics_draw_text(disp, 22, 16, onscreenText);
+    if (inExitModal) {
+        graphics_draw_text(disp, 22, 16, "Move to...");
 
-    if (!hasNextLine()) {
-        for (int i = 0; i < (int)(ActionCount); i++) {
-            graphics_draw_sprite_stride(disp, 16 + (32 * i), 240 - 22, buttonsSprite, i);
+        for (int i = 0; i < numberOfOnscreenExits; i++) {
+            graphics_draw_text(disp, 22 + 32, 16 + 16 + (16 * i), onscreenExitText[i]);
 
-            if (i == (Action)selectedActionIndex) {
-                graphics_draw_sprite_trans_stride(disp, 16 + (32 * i), 240 - 22, buttonsSprite, 7);
+            if (i == selectedExitIndex) {
+                graphics_draw_text(disp, 22 + 16, 16 + 16 + (16 * i), ">");
+            }
+        }
+    } else {
+        graphics_draw_text(disp, 22, 16, onscreenText);
+
+        if (!hasNextLine()) {
+            for (int i = 0; i < (int)(ActionCount); i++) {
+                graphics_draw_sprite_stride(disp, 16 + (32 * i), 240 - 22, buttonsSprite, i);
+
+                if (i == (Action)selectedActionIndex) {
+                    graphics_draw_sprite_trans_stride(disp, 16 + (32 * i), 240 - 22, buttonsSprite, 7);
+                }
             }
         }
     }
