@@ -50,6 +50,10 @@ class GameState {
     return __current_room.people().map{ |p| p.brief() }.toList
   }
 
+  static getObjects() {
+    return __current_room.objects().map{ |p| p.brief() }.toList
+  }
+
   static moveToRoom(roomKey) {
     if (__current_room == null) {
       __current_room = GameWorld.areas()[roomKey]
@@ -68,12 +72,17 @@ class GameState {
     setLines(__current_room.description())
   }
 
-  static investigate() {
+  static investigate(objectKey) {
     if (hasNextLine()) {
       Fiber.abort("Tried to investigate when there was a line ready!")
     }
 
-    setLines(["We investigated!"])
+    for (ingameObject in __current_room.objects()) {
+      if (ingameObject.brief() == objectKey) {
+        setLines(ingameObject.inspectLines())
+        return
+      }
+    }
   }
 
   static talk(personKey) {

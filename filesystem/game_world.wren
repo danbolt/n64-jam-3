@@ -1,5 +1,26 @@
 import "area.wren" for Area
 import "person.wren" for Person
+import "ingame_object.wren" for IngameObject
+
+class WhiteWalls is IngameObject {
+  construct new() {
+    brief = "The walls"
+    inspectLines = [
+      "The walls are painted white with a matte finish.",
+      "They look incredibly nondescript. Whoever painted them did an impeccable job."
+    ]
+  }
+}
+
+class HardwoodFloor is IngameObject {
+  construct new() {
+    brief = "The floor"
+    inspectLines = [
+      "The the floor is made of polished hardwood. You can't see any scuffs.",
+      "Given that laminate is more and more popular these days, the place feels a bit luxurious."
+    ]
+  }
+}
 
 class TestPerson is Person {
   construct new() {
@@ -27,11 +48,13 @@ class StartingRoom is Area {
     brief = "You're in a plain-looking room with two people."
     description = [
       "You're in a dull room. There are four white walls.",
-      "The the floor is made of polished hardwood. You can't see any scuffs.",
       "There's a test person, and an other person too.\n\nWow!",
       "The only distinguishing feature is a sole exit."
     ]
-    objects = []
+    objects = [
+      WhiteWalls.new(),
+      HardwoodFloor.new()
+    ]
     people = [
       TestPerson.new(),
       OtherPerson.new()
