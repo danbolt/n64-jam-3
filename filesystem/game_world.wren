@@ -53,8 +53,8 @@ class OtherRoom is Area {
     objects = []
     people = []
     exits = {
-      "Back the way you came": "starting_room",
-      "Go further": "other_other_room"
+      "Go further": "other_other_room",
+      "Back the way you came": "starting_room"
     }
   }
 }

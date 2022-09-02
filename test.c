@@ -272,7 +272,7 @@ void tickLogic() {
             bippingText = 0;
         } else {
             bipDelta += currentTimeInTicks - lastTimeInTicks;
-            if (bipDelta > TICKS_FROM_MS(115)) {
+            if (bipDelta > TICKS_FROM_MS(34)) {
                 bipDelta = 0;
                 currentTextIndex++;
             }
@@ -425,7 +425,7 @@ void tick() {
 int main(void)
 {
     /* Initialize peripherals */
-    display_init( res, bit, 2, GAMMA_NONE, ANTIALIAS_RESAMPLE );
+    display_init( res, bit, 2, GAMMA_CORRECT_DITHER, ANTIALIAS_RESAMPLE );
     dfs_init( DFS_DEFAULT_LOCATION );
     controller_init();
     debug_init_isviewer();

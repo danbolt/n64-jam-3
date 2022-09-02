@@ -108,7 +108,7 @@ class GameState {
 
 class Gameplay {
   static execute() {
-    View.setScreenColor(100, 100, 100)
+    View.setScreenColor(25, 25, 25)
 
     GameState.initialize()
   }
