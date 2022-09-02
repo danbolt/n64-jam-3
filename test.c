@@ -14,6 +14,7 @@ static color_t screenColor;
 static color_t targetScreenColor;
 
 static sprite_t* buttonsSprite;
+static sprite_t* fontSprite;
 
 static unsigned long lastTimeInTicks;
 
@@ -165,6 +166,13 @@ void initHUDSprites() {
     buttonsSprite = malloc( dfs_size( fp ) );
     dfs_read( buttonsSprite, 1, dfs_size( fp ), fp );
     dfs_close( fp );
+
+    int fp2 = dfs_open("font_idea.sprite");
+    fontSprite = malloc( dfs_size( fp2 ) );
+    dfs_read( fontSprite, 1, dfs_size( fp2 ), fp2 );
+    dfs_close( fp2 );
+    graphics_set_font_sprite(fontSprite);
+    debugf("%d,%d,%d,%d\n", fontSprite->width, fontSprite->height, fontSprite->hslices, fontSprite->vslices);
 }
 
 void initGame() {
@@ -437,14 +445,14 @@ void tickDisplay() {
             // HACK: use a custom font for this
             for (int i = 0; i < currentTextIndex; i++) {
                 if (onscreenText[i] == ' ') {
-                    tx += 8;
+                    tx += 7;
                 } else if (onscreenText[i] == '\n') {
                     tx = 22;
 
-                    ty += 8;
+                    ty += 9;
                 } else {
                     graphics_draw_character(disp, tx, ty, onscreenText[i]);
-                    tx += 8;
+                    tx += 7;
                 }
 
             }
